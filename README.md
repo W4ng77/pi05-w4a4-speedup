@@ -47,6 +47,51 @@ pairs only; batch ≥ 4 additionally replaces q/o/down:
 | 16 | 481.5 ms | 400.4 ms | 1.20× | 1.11× |
 | 24 | 726.2 ms | 597.1 ms | **1.22×** | 1.13× |
 
+### Full Omega-QVLA method with real pack parameters (compiled, vs compiled BF16)
+
+Rotated GPTQ weights + activation-scale tables loaded from the released
+``quantized.pt`` pack; the complete runtime pipeline (input rotation ->
+smooth+INT4 quantize -> INT4x4 GEMM -> output-rotation restore) executes on
+every quantized layer. Output rotation + GLU run as our fused single-pass
+Triton kernel (``rotglu``, see Kernel design):
+
+| Batch | 1 | 2 | 4 | 8 | 16 | 24 |
+|---|---:|---:|---:|---:|---:|---:|
+| End-to-end speedup | 1.05x | 1.09x | 1.13x | **1.15x** | 1.14x | 1.14x |
+
+Progression at B=8: eager rotations 0.99x -> rotations traced into the
+Inductor graph 1.10x -> fused rotglu kernel 1.15x. Peak batch = 8.
+
+Per-block with real parameters and ALL rotations included:
+MLP block (gate/up + GLU) **1.24x** at M=968, **1.30x** at M=7744;
+single gate_proj 1.05x / 1.09x (`tools/micro_method_block.py`).
+
+### Kernel design (`tools/triton_block_rotate.py`)
+
+Two single-pass Triton kernels remove the memory-traffic overhead of
+DuQuant's runtime rotations:
+
+* ``block_rotate``: grid over (row-tiles, 64-channel blocks). Each program
+  loads one 64x64 rotation tile into registers once, gathers its 64 source
+  channels (fusing the zigzag permutation into the load for the input side),
+  computes a (BM,64)@(64,64) ``tl.dot``, and stores contiguously — one global
+  read + one write versus gather/bmm/reshape chains (2.7x over eager on the
+  16384-wide output restore).
+* ``rotglu``: fuses the *pair* of output-rotation restores for gate and up
+  with the GLU nonlinearity: loads both un-restored GEMM output tiles, applies
+  the two 64x64 rotations in registers, evaluates overflow-safe tanh-GELU
+  (sigmoid form) and the elementwise product, and writes the single fused
+  result. Traffic drops from 7 tensor passes (2x rotate read+write + GLU
+  2 reads/1 write) to 3; fp32 accumulation throughout. Registered as
+  ``torch.library`` custom ops with fake-tensor metas so the policy still
+  compiles as one Inductor graph.
+
+The remaining unfused cost is the input-side rotation (~340 us/call at
+M=7744; gather-bound, at parity with Inductor codegen). Folding it into the
+Nunchaku activation-quantize kernel (which already makes a full pass over
+the same tensor) is the identified next step and would close most of the
+gap to the rotation-free ceiling (1.18-1.19x).
+
 ### Per-layer / per-block (M=968 prefix shapes, includes activation-quantize cost)
 
 | Unit | FP16 | W4A4 | Speedup |
