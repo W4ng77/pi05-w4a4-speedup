@@ -11,10 +11,14 @@ from the existing submission.
 We implement a **true INT4×INT4 Tensor Core backend** for Ω-QVLA and
 benchmark it on Pi-0.5. Latency of the dense quantize/GEMM pipeline is
 independent of weight values, so timing uses RTN-packed placeholder weights
-in the exact deployment format; the composite rotation folds offline into
-the packed weights (QuaRot-style absorption through RMSNorm), and the
-per-channel smoothing divide that hosts the per-step activation scales is
-executed in every timed run. Native INT4
+in the exact deployment format. The weight-side rotation folds offline into
+the packed weights, and the per-channel smoothing divide hosting the
+per-step activation scales is executed in every timed run. The
+activation-side rotation is per-layer and therefore a runtime transform: we
+measure its unfused cost at 55 us per prefix-shape call, which would reduce
+the headline numbers by 3-5 points (e.g. 1.19x -> ~1.15x at batch 8) until
+it is fused into the activation-quantize kernel, whose memory pass it can
+share. Native INT4
 Tensor Cores are available on NVIDIA architectures from Turing through Ada
 (SM75–SM89, including A100 and the RTX 40 series) and were removed only in
 Hopper (SM90). Our runtime therefore dispatches by architecture: on
