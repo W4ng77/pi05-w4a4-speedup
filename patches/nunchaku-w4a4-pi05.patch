@@ -1,0 +1,37 @@
+diff --git a/src/kernels/awq/gemv_awq.cu b/src/kernels/awq/gemv_awq.cu
+index 694fd78..7b6f5d8 100644
+--- a/src/kernels/awq/gemv_awq.cu
++++ b/src/kernels/awq/gemv_awq.cu
+@@ -273,10 +273,12 @@ Tensor gemv_awq(
+ 
+         constexpr int GROUP_SIZE = 64;
+ 
+-        assert(m > 0 && m <= 8);
++        // pi0.5 action expert runs M=10 (action-horizon tokens per denoise
++        // step); extend the small-batch dispatch to cover it.
++        assert(m > 0 && m <= 12);
+         assert(group_size == GROUP_SIZE);
+ 
+-        dispatchVal(m, std::make_integer_sequence<int, 9>(), [&]<int M>() {
++        dispatchVal(m, std::make_integer_sequence<int, 13>(), [&]<int M>() {
+             if constexpr (M == 0) {
+                 assert(false);
+                 return;
+diff --git a/src/kernels/zgemm/lora.cuh b/src/kernels/zgemm/lora.cuh
+index f620435..281da7b 100644
+--- a/src/kernels/zgemm/lora.cuh
++++ b/src/kernels/zgemm/lora.cuh
+@@ -252,6 +252,13 @@ public:
+ 
+         __device__ __forceinline__ static void
+         apply_lora_down(fpsum_warp &fpsum, float *act, const packed_fpsum_t *wgt, int rank, bool alwaysfalse) {
++            // A rank-0 SVD branch is a valid speed-only configuration.  The
++            // preload below otherwise dereferences an empty LoRA tensor before
++            // the rank-controlled compute loop has a chance to skip it.
++            if (rank == 0) {
++                return;
++            }
++
+             constexpr int NUM_STAGES = 2;
+ 
+             const int laneId = threadIdx.x % WARP_SIZE;

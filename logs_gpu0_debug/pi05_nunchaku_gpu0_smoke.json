@@ -1,0 +1,116 @@
+{
+  "baseline_16bit": {
+    "action_dtype": "float64",
+    "action_shape": [
+      10,
+      7
+    ],
+    "compute_dtype": "bfloat16",
+    "finite": true,
+    "max_ms": 273.99061620235443,
+    "mean_ms": 271.61637507379055,
+    "median_ms": 270.6675808876753,
+    "memory": {
+      "allocated_after_bytes": 7493529600,
+      "allocated_before_bytes": 7493529600,
+      "peak_allocated_bytes": 7644988416,
+      "peak_reserved_bytes": 7767851008,
+      "reserved_after_bytes": 7767851008,
+      "reserved_before_bytes": 7767851008
+    },
+    "min_ms": 270.19092813134193,
+    "p95_ms": 273.99061620235443,
+    "samples_ms": [
+      273.99061620235443,
+      270.6675808876753,
+      270.19092813134193
+    ]
+  },
+  "config": {
+    "action_dim_internal": 32,
+    "action_horizon": 10,
+    "activation_scale": "Nunchaku runtime group64 scale (kernel-required; no timestep table)",
+    "compute_dtype": "native",
+    "denoise_steps": 10,
+    "dtype": "bfloat16",
+    "iterations": 3,
+    "name": "pi05_libero",
+    "per_step_scale_table": false,
+    "projections": [
+      "gate_proj",
+      "up_proj"
+    ],
+    "requested_scope": "pali",
+    "requested_strategy": "fastest",
+    "scope": "pali",
+    "seed": 0,
+    "strategy": "fastest",
+    "torch_compile": false,
+    "warmup": 1
+  },
+  "environment": {
+    "compute_capability": "8.0",
+    "gpu": "NVIDIA A100-SXM4-40GB",
+    "python": "3.11.15",
+    "torch": "2.7.1+cu126",
+    "torch_cuda": "12.6"
+  },
+  "experiment": "pi05_libero_nunchaku_w4a4_e2e_speed_smoke",
+  "load_seconds": 69.27283987402916,
+  "nunchaku_w4a4": {
+    "action_dtype": "float64",
+    "action_shape": [
+      10,
+      7
+    ],
+    "finite": true,
+    "max_ms": 258.7569821625948,
+    "mean_ms": 257.5737840185563,
+    "median_ms": 257.8606642782688,
+    "memory": {
+      "allocated_after_bytes": 5719633920,
+      "allocated_before_bytes": 5719633920,
+      "peak_allocated_bytes": 5871768064,
+      "peak_reserved_bytes": 5960105984,
+      "reserved_after_bytes": 5960105984,
+      "reserved_before_bytes": 5960105984
+    },
+    "min_ms": 256.1037056148052,
+    "p95_ms": 258.7569821625948,
+    "samples_ms": [
+      258.7569821625948,
+      256.1037056148052,
+      257.8606642782688
+    ]
+  },
+  "paths": {
+    "checkpoint": "/hot-data/fsx/workspace/xinyu/workspace/models/pi05_libero_pytorch",
+    "nunchaku_root": "/ceph/workspace/xinyu/Nunchaku",
+    "openpi_root": "/hot-data/fsx/workspace/xinyu/workspace/openpi"
+  },
+  "replacement": {
+    "count": 36,
+    "dense_parameter_bytes_replaced": 2415919104,
+    "expected_count": 36,
+    "nunchaku_parameter_bytes": 642023424,
+    "pack_seconds": 1.1896096728742123,
+    "parameter_compression_ratio": 3.7629765732659624,
+    "per_step_scale_table": false,
+    "projection_counts": {
+      "gate_proj": 18,
+      "up_proj": 18
+    },
+    "projections": [
+      "gate_proj",
+      "up_proj"
+    ],
+    "rank": 0,
+    "scope": "pali",
+    "shape_counts": {
+      "2048x16384": 36
+    },
+    "smooth_factor": 1.0,
+    "weight_quantization": "symmetric signed INT4 RTN, group_size=64"
+  },
+  "speedup_vs_16bit": 1.049666034349411
+}

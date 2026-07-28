@@ -1,0 +1,49 @@
+AUTOTUNE mm(968x2048, 2048x256)
+  mm 0.0205 ms 100.0% 
+  triton_mm_9355 0.0225 ms 90.9% ACC_TYPE='tl.float32', ALLOW_TF32=True, BLOCK_K=128, BLOCK_M=64, BLOCK_N=64, EVEN_K=True, GROUP_M=8, num_stages=5, num_warps=4
+  triton_mm_9359 0.0276 ms 74.1% ACC_TYPE='tl.float32', ALLOW_TF32=True, BLOCK_K=128, BLOCK_M=64, BLOCK_N=128, EVEN_K=True, GROUP_M=8, num_stages=4, num_warps=4
+  triton_mm_9354 0.0287 ms 71.4% ACC_TYPE='tl.float32', ALLOW_TF32=True, BLOCK_K=64, BLOCK_M=64, BLOCK_N=64, EVEN_K=True, GROUP_M=8, num_stages=3, num_warps=8
+  triton_mm_9358 0.0287 ms 71.4% ACC_TYPE='tl.float32', ALLOW_TF32=True, BLOCK_K=64, BLOCK_M=64, BLOCK_N=128, EVEN_K=True, GROUP_M=8, num_stages=3, num_warps=4
+  triton_mm_9351 0.0297 ms 69.0% ACC_TYPE='tl.float32', ALLOW_TF32=True, BLOCK_K=128, BLOCK_M=64, BLOCK_N=32, EVEN_K=True, GROUP_M=8, num_stages=5, num_warps=4
+  triton_mm_9348 0.0317 ms 64.5% ACC_TYPE='tl.float32', ALLOW_TF32=True, BLOCK_K=128, BLOCK_M=32, BLOCK_N=32, EVEN_K=True, GROUP_M=8, num_stages=2, num_warps=4
+  triton_mm_9357 0.0328 ms 62.5% ACC_TYPE='tl.float32', ALLOW_TF32=True, BLOCK_K=32, BLOCK_M=64, BLOCK_N=128, EVEN_K=True, GROUP_M=8, num_stages=4, num_warps=8
+  triton_mm_9361 0.0338 ms 60.6% ACC_TYPE='tl.float32', ALLOW_TF32=True, BLOCK_K=32, BLOCK_M=128, BLOCK_N=64, EVEN_K=True, GROUP_M=8, num_stages=4, num_warps=8
+  triton_mm_9349 0.0399 ms 51.3% ACC_TYPE='tl.float32', ALLOW_TF32=True, BLOCK_K=32, BLOCK_M=32, BLOCK_N=64, EVEN_K=True, GROUP_M=8, num_stages=5, num_warps=8
+SingleProcess AUTOTUNE benchmarking takes 0.5853 seconds and 0.0003 seconds precompiling for 20 choices
+wall unprofiled: 75.5 ms
+wall profiled:   79.9 ms
+sum of self CUDA kernel time: 119.5 ms
+kernel-launch-ish event count (profiled infer): 4489
+
+-------------------------------------------------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  
+                                                   Name    Self CPU %      Self CPU   CPU total %     CPU total  CPU time avg     Self CUDA   Self CUDA %    CUDA total  CUDA time avg    # of Calls  
+-------------------------------------------------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  
+                             Torch-Compiled Region: 6/0         0.95%     697.335us        91.50%      67.354ms      67.354ms      37.766ms        63.19%      59.676ms      59.676ms             1  
+                             Torch-Compiled Region: 7/0         4.05%       2.978ms       202.19%     148.826ms      14.883ms      21.864ms        36.58%     119.829ms      11.983ms            10  
+ampere_bf16_s16816gemm_bf16_128x256_ldg8_f2f_stages_...         0.00%       0.000us         0.00%       0.000us       0.000us      11.287ms        18.88%      11.287ms     331.980us            34  
+ampere_bf16_s16816gemm_bf16_256x128_ldg8_f2f_stages_...         0.00%       0.000us         0.00%       0.000us       0.000us       5.851ms         9.79%       5.851ms     344.156us            17  
+                              triton_per_fused_addmm_10         0.00%       0.000us         0.00%       0.000us       0.000us       3.251ms         5.44%       3.251ms     325.118us            10  
+                                 triton_tem_fused_mm_12         0.00%       0.000us         0.00%       0.000us       0.000us       3.054ms         5.11%       3.054ms       8.100us           377  
+                                 triton_tem_fused_mm_25         0.00%       0.000us         0.00%       0.000us       0.000us       3.049ms         5.10%       3.049ms      16.937us           180  
+                               triton_tem_fused_addmm_2         0.00%       0.000us         0.00%       0.000us       0.000us       3.019ms         5.05%       3.019ms      12.424us           243  
+                          triton_tem_fused_addmm_gelu_6         0.00%       0.000us         0.00%       0.000us       0.000us       2.900ms         4.85%       2.900ms      35.806us            81  
+                        triton_tem_fused_gelu_mm_mul_24         0.00%       0.000us         0.00%       0.000us       0.000us       2.050ms         3.43%       2.050ms      11.391us           180  
+                           triton_tem_fused_clone_mm_21         0.00%       0.000us         0.00%       0.000us       0.000us       2.022ms         3.38%       2.022ms      11.231us           180  
+ampere_bf16_s16816gemm_bf16_128x128_ldg8_f2f_stages_...         0.00%       0.000us         0.00%       0.000us       0.000us       1.855ms         3.10%       1.855ms      22.897us            81  
+                                 triton_tem_fused_mm_23         0.00%       0.000us         0.00%       0.000us       0.000us       1.810ms         3.03%       1.810ms      10.054us           180  
+                         triton_tem_fused_addmm_clone_4         0.00%       0.000us         0.00%       0.000us       0.000us       1.476ms         2.47%       1.476ms      18.223us            81  
+                                triton_tem_fused_bmm_20         0.00%       0.000us         0.00%       0.000us       0.000us       1.260ms         2.11%       1.260ms       7.001us           180  
+                                 triton_tem_fused_mm_14         0.00%       0.000us         0.00%       0.000us       0.000us       1.215ms         2.03%       1.215ms       6.753us           180  
+                           triton_tem_fused_clone_mm_22         0.00%       0.000us         0.00%       0.000us       0.000us       1.191ms         1.99%       1.191ms      70.080us            17  
+void pytorch_flash::flash_fwd_splitkv_kernel<Flash_f...         0.00%       0.000us         0.00%       0.000us       0.000us       1.183ms         1.98%       1.183ms      14.606us            81  
+                           triton_poi_fused_gelu_mul_24         0.00%       0.000us         0.00%       0.000us       0.000us       1.151ms         1.93%       1.151ms      67.695us            17  
+                                triton_tem_fused_bmm_17         0.00%       0.000us         0.00%       0.000us       0.000us     908.115us         1.52%     908.115us       5.045us           180  
+                                triton_poi_fused_cat_16         0.00%       0.000us         0.00%       0.000us       0.000us     817.671us         1.37%     817.671us       4.543us           180  
+                                triton_tem_fused_bmm_21         0.00%       0.000us         0.00%       0.000us       0.000us     757.820us         1.27%     757.820us      44.578us            17  
+triton_poi_fused__scaled_dot_product_flash_attention...         0.00%       0.000us         0.00%       0.000us       0.000us     693.731us         1.16%     693.731us       2.855us           243  
+triton_per_fused__softmax__to_copy_add_mul_scalar_te...         0.00%       0.000us         0.00%       0.000us       0.000us     610.295us         1.02%     610.295us       3.391us           180  
+triton_per_fused__softmax__to_copy_add_mul_scalar_te...         0.00%       0.000us         0.00%       0.000us       0.000us     604.861us         1.01%     604.861us      35.580us            17  
+-------------------------------------------------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  ------------  
+Self CPU time total: 73.608ms
+Self CUDA time total: 59.770ms
+

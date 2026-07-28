@@ -1,0 +1,6 @@
+[load] policy
+[replace] {'fused_layers': 18, 'fused_shape': '2048x32768', 'pack_seconds': 0.25398399122059345, 'rank': 0, 'weight_quantization': 'symmetric signed INT4 RTN, group_size=64', 'per_step_scale_table': False}
+[batch 1] 16bit=277.4ms w4a4=275.5ms speedup=1.007
+[batch 4] 16bit=369.9ms w4a4=356.6ms speedup=1.037
+[batch 8] 16bit=497.8ms w4a4=474.8ms speedup=1.048
+[batch 16] 16bit=800.4ms w4a4=732.7ms speedup=1.093

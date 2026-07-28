@@ -1,0 +1,12 @@
+[load] policy
+[replace] {'fused_layers': 18, 'fused_shape': '2048x32768', 'pack_seconds': 0.21902914717793465, 'rank': 0, 'weight_quantization': 'symmetric signed INT4 RTN, group_size=64', 'per_step_scale_table': False}
+[round 1/10] 16bit=272.31ms w4a4=267.90ms
+[round 2/10] 16bit=270.46ms w4a4=268.18ms
+[round 3/10] 16bit=270.46ms w4a4=268.34ms
+[round 4/10] 16bit=270.35ms w4a4=268.34ms
+[round 5/10] 16bit=270.35ms w4a4=268.22ms
+[round 6/10] 16bit=270.26ms w4a4=268.34ms
+[round 7/10] 16bit=270.26ms w4a4=268.34ms
+[round 8/10] 16bit=270.26ms w4a4=268.34ms
+[round 9/10] 16bit=270.22ms w4a4=268.23ms
+[round 10/10] 16bit=270.22ms w4a4=268.23ms

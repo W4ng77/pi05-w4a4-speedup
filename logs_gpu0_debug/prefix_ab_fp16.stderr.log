@@ -1,0 +1,14 @@
+[load] policy
+[replace] {'fused_layers': 18, 'fused_shape': '2048x32768', 'pack_seconds': 0.4986169096082449, 'rank': 0, 'weight_quantization': 'symmetric signed INT4 RTN, group_size=64', 'per_step_scale_table': False}
+[warmup 16bit] prefix=29.69ms denoise=191.05ms e2e=280.57ms backbone_calls=11
+[warmup w4a4] prefix=27.88ms denoise=209.70ms e2e=304.87ms backbone_calls=11
+[round 1/10] prefix 16bit=29.24 w4a4=27.30
+[round 2/10] prefix 16bit=29.29 w4a4=27.30
+[round 3/10] prefix 16bit=29.31 w4a4=27.30
+[round 4/10] prefix 16bit=29.29 w4a4=27.30
+[round 5/10] prefix 16bit=29.29 w4a4=27.28
+[round 6/10] prefix 16bit=29.30 w4a4=27.30
+[round 7/10] prefix 16bit=29.30 w4a4=27.28
+[round 8/10] prefix 16bit=29.30 w4a4=27.30
+[round 9/10] prefix 16bit=29.30 w4a4=27.31
+[round 10/10] prefix 16bit=29.30 w4a4=27.30

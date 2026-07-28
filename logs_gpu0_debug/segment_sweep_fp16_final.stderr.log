@@ -1,0 +1,5 @@
+[load] policy
+[replace] {'fused_layers': 18, 'fused_shape': '2048x32768', 'pack_seconds': 0.6170120351016521, 'rank': 0, 'weight_quantization': 'symmetric signed INT4 RTN, group_size=64', 'per_step_scale_table': False, 'extra_dual_projections': ['q_proj', 'o_proj', 'down_proj'], 'extra_dual_count': 54}
+[batch 8] prefix 16bit=235.2ms w4a4=202.1ms speedup prefix=1.164 denoise=0.995 e2e=1.070
+[batch 16] prefix 16bit=481.5ms w4a4=400.4ms speedup prefix=1.203 denoise=1.014 e2e=1.114
+[batch 24] OOM, skipped

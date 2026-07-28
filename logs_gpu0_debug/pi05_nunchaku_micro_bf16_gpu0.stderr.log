@@ -1,0 +1,9 @@
+[1/9] expert.q_proj MKN=10x1024x2048
+[2/9] expert.k_v_proj MKN=10x1024x256
+[3/9] expert.o_proj MKN=10x2048x1024
+[4/9] expert.gate_up_proj MKN=10x1024x4096
+[5/9] expert.down_proj MKN=10x4096x1024
+[6/9] pali.q_o_proj MKN=968x2048x2048
+[7/9] pali.k_v_proj MKN=968x2048x256
+[8/9] pali.gate_up_proj MKN=968x2048x16384
+[9/9] pali.down_proj MKN=968x16384x2048

@@ -1,0 +1,146 @@
+{
+  "config": {
+    "baseline": "FP16 autocast",
+    "compute_dtype": "fp16",
+    "denoise_steps": 10,
+    "ours": "Pali 18x fused gate+up W4A4 (N=32768); rest 16-bit",
+    "protocol": "same-process ABBA interleave per batch size; sample_actions timed directly",
+    "rounds": 6,
+    "samples_per_arm_per_batch": 12,
+    "seed": 0,
+    "torch_compile": false,
+    "warmup_per_arm": 3
+  },
+  "environment": {
+    "compute_capability": "8.0",
+    "gpu": "NVIDIA A100-SXM4-40GB",
+    "gpu0_uuid_smclock_memclock_temp_power": "GPU-aedc5ae3-c464-fae0-27ec-c0901978add6, 1410 MHz, 1215 MHz, 42, 101.93 W",
+    "torch": "2.7.1+cu126",
+    "torch_cuda": "12.6"
+  },
+  "experiment": "pi05_libero_w4a4_fused_gateup_batch_sweep",
+  "replacement": {
+    "expert_dual_count": 126,
+    "expert_dual_projections": [
+      "q_proj",
+      "k_proj",
+      "v_proj",
+      "o_proj",
+      "gate_proj",
+      "up_proj",
+      "down_proj"
+    ],
+    "extra_dual_count": 90,
+    "extra_dual_projections": [
+      "q_proj",
+      "k_proj",
+      "v_proj",
+      "o_proj",
+      "down_proj"
+    ],
+    "fused_layers": 18,
+    "fused_shape": "2048x32768",
+    "pack_seconds": 0.2596983555704355,
+    "per_step_scale_table": false,
+    "rank": 0,
+    "weight_quantization": "symmetric signed INT4 RTN, group_size=64"
+  },
+  "results": [
+    {
+      "baseline_16bit": {
+        "max_ms": 386.4700812846422,
+        "mean_ms": 310.3683413937688,
+        "median_ms": 299.36954006552696,
+        "min_ms": 288.0529370158911,
+        "p95_ms": 386.4700812846422,
+        "samples_ms": [
+          301.83551646769047,
+          295.39167881011963,
+          290.6544953584671,
+          386.4700812846422,
+          296.90356366336346,
+          290.2060206979513,
+          314.46245312690735,
+          319.1685192286968,
+          292.45416447520256,
+          312.71438486874104,
+          288.0529370158911,
+          336.1062817275524
+        ]
+      },
+      "baseline_ms_per_sample": 299.36954006552696,
+      "batch": 1,
+      "ours_ms_per_sample": 401.8871719017625,
+      "ours_w4a4": {
+        "max_ms": 474.9828726053238,
+        "mean_ms": 406.8456998405357,
+        "median_ms": 401.8871719017625,
+        "min_ms": 384.6234083175659,
+        "p95_ms": 474.9828726053238,
+        "samples_ms": [
+          398.51163513958454,
+          405.26270866394043,
+          407.27015025913715,
+          424.6801268309355,
+          474.9828726053238,
+          389.1900461167097,
+          394.98208835721016,
+          385.53858175873756,
+          416.0362649708986,
+          409.2731084674597,
+          384.6234083175659,
+          391.7974065989256
+        ]
+      },
+      "speedup": 0.7449094198475811
+    },
+    {
+      "baseline_16bit": {
+        "max_ms": 541.9411584734917,
+        "mean_ms": 518.7623972694079,
+        "median_ms": 514.7991441190243,
+        "min_ms": 504.004143178463,
+        "p95_ms": 541.9411584734917,
+        "samples_ms": [
+          518.8154634088278,
+          516.6352391242981,
+          512.9630491137505,
+          541.9411584734917,
+          529.9939271062613,
+          508.32617096602917,
+          504.004143178463,
+          541.0472210496664,
+          508.14156979322433,
+          506.3732769340277,
+          526.6511123627424,
+          510.25643572211266
+        ]
+      },
+      "baseline_ms_per_sample": 64.34989301487803,
+      "batch": 8,
+      "ours_ms_per_sample": 73.7079376121983,
+      "ours_w4a4": {
+        "max_ms": 642.2712970525026,
+        "mean_ms": 593.8762199754516,
+        "median_ms": 589.6635008975863,
+        "min_ms": 567.7770748734474,
+        "p95_ms": 642.2712970525026,
+        "samples_ms": [
+          578.6849409341812,
+          603.9739493280649,
+          576.6989476978779,
+          642.2712970525026,
+          607.0329677313566,
+          631.9885421544313,
+          568.7101390212774,
+          602.7370616793633,
+          576.0067626833916,
+          600.6420608609915,
+          569.9908956885338,
+          567.7770748734474
+        ]
+      },
+      "speedup": 0.8730388489967524
+    }
+  ]
+}

@@ -1,0 +1,4 @@
+[load] policy
+[replace] {'fused_layers': 18, 'fused_shape': '2048x32768', 'pack_seconds': 0.2596983555704355, 'rank': 0, 'weight_quantization': 'symmetric signed INT4 RTN, group_size=64', 'per_step_scale_table': False, 'extra_dual_projections': ['q_proj', 'k_proj', 'v_proj', 'o_proj', 'down_proj'], 'extra_dual_count': 90, 'expert_dual_projections': ['q_proj', 'k_proj', 'v_proj', 'o_proj', 'gate_proj', 'up_proj', 'down_proj'], 'expert_dual_count': 126}
+[batch 1] 16bit=299.4ms w4a4=401.9ms speedup=0.745
+[batch 8] 16bit=514.8ms w4a4=589.7ms speedup=0.873
