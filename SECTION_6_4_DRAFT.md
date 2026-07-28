@@ -8,7 +8,13 @@ from the existing submission.
 
 ## 6.4 Real-Quantized Kernel Implementation
 
-We deploy Ω-QVLA with **true INT4×INT4 Tensor Core execution**. Native INT4
+We implement a **true INT4×INT4 Tensor Core backend** for Ω-QVLA and
+benchmark it on Pi-0.5. Latency of the dense quantize/GEMM pipeline is
+independent of weight values, so timing uses RTN-packed placeholder weights
+in the exact deployment format; the composite rotation folds offline into
+the packed weights (QuaRot-style absorption through RMSNorm), and the
+per-channel smoothing divide that hosts the per-step activation scales is
+executed in every timed run. Native INT4
 Tensor Cores are available on NVIDIA architectures from Turing through Ada
 (SM75–SM89, including A100 and the RTX 40 series) and were removed only in
 Hopper (SM90). Our runtime therefore dispatches by architecture: on
@@ -55,9 +61,10 @@ Caption: A100 rows are **end-to-end** `sample_actions` latency (prefix + 10
 denoising steps) under `torch.compile` max-autotune — the deployment
 configuration — with the W4A4 backend as a custom op; batch = parallel
 rollout environments. H100 / RTX 4080 rows use the W4A8 backend under its
-original per-step protocol. A100 achieves a better normalized reduction at
-batch ≥ 4 than the W4A8 fallback achieves on H100, on hardware two
-generations older and at strictly lower activation precision.
+original per-step protocol. At batch ≥ 4 the A100 W4A4 rows outperform the
+same-era W4A8 result on the RTX 4080 SUPER (0.84–0.86× vs 0.87×) and
+approach the H100 figure (0.80×) on hardware two generations older, at
+strictly lower activation precision.
 
 ### Optional companion tables
 
@@ -78,3 +85,10 @@ single gate/up 1.41×.
   ablation motivating shape dispatch).
 * The 4080 SUPER supports true W4A4; running this kit there completes the
   same-GPU W4A8-vs-W4A4 comparison.
+* Latency value-independence is the standard kernel-benchmark argument: no
+  data-dependent control flow in dense INT4 MMA or the fused quantize; the
+  smoothing divide is exercised (with unit scales) in every measurement, so
+  installing calibrated per-step scales adds zero cost. In the dispatched
+  configuration the per-step table touches only 16-bit expert layers anyway.
+* Accuracy numbers (Table 2) come from the simulated-quantization pipeline;
+  no accuracy claim is attached to these latency runs.
