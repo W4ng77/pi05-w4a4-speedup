@@ -1,0 +1,77 @@
+{
+  "baseline_compiled_16bit": {
+    "finite": true,
+    "max_ms": 280.62794730067253,
+    "mean_ms": 277.32399590313435,
+    "median_ms": 277.04282850027084,
+    "min_ms": 275.00092424452305,
+    "p95_ms": 280.62794730067253,
+    "samples_ms": [
+      277.5425147265196,
+      276.9974395632744,
+      280.62794730067253,
+      277.0240493118763,
+      277.0616076886654,
+      275.00092424452305,
+      276.3704117387533,
+      277.10695564746857,
+      276.69326961040497,
+      278.81483919918537
+    ],
+    "warmup_ms": [
+      342626.9337441772,
+      17907.141882926226,
+      290.379885584116,
+      279.13010865449905,
+      279.58276495337486,
+      280.0993397831917
+    ]
+  },
+  "compile_mode": "max-autotune",
+  "config": {
+    "batch": 8,
+    "iterations": 10,
+    "note": "fixed order (16bit then w4a4), same process; custom-op integration",
+    "ours": "Pali 18x fused gate+up W4A4 behind omega::w4a4_linear custom op",
+    "timing_scope": "model.sample_actions (input transforms excluded)",
+    "warmup": 6
+  },
+  "experiment": "pi05_libero_w4a4_custom_op_under_torch_compile",
+  "replacement": {
+    "custom_op": "omega::w4a4_linear",
+    "fused_layers": 18,
+    "fused_shape": "2048x32768",
+    "pack_seconds": 0.30583021230995655,
+    "rank": 0,
+    "weight_quantization": "symmetric signed INT4 RTN, group_size=64"
+  },
+  "speedup_vs_compiled_16bit": 1.1929662090507385,
+  "w4a4_compiled_custom_op": {
+    "finite": true,
+    "max_ms": 233.07935893535614,
+    "mean_ms": 232.08106122910976,
+    "median_ms": 232.2302395477891,
+    "min_ms": 230.44201359152794,
+    "p95_ms": 233.07935893535614,
+    "samples_ms": [
+      230.44201359152794,
+      232.2916928678751,
+      232.1687862277031,
+      232.66294039785862,
+      231.0978677123785,
+      232.3914561420679,
+      232.14909434318542,
+      231.72804899513721,
+      233.07935893535614,
+      232.7993530780077
+    ],
+    "warmup_ms": [
+      216297.6026069373,
+      27992.69512668252,
+      255.0101839005947,
+      239.17389288544655,
+      238.42210322618484,
+      232.64610953629017
+    ]
+  }
+}

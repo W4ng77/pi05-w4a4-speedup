@@ -1,0 +1,77 @@
+{
+  "baseline_compiled_16bit": {
+    "finite": true,
+    "max_ms": 102.77137160301208,
+    "mean_ms": 101.85907296836376,
+    "median_ms": 101.82122234255075,
+    "min_ms": 101.2972965836525,
+    "p95_ms": 102.77137160301208,
+    "samples_ms": [
+      102.77137160301208,
+      102.10051760077477,
+      101.52766667306423,
+      101.47264786064625,
+      101.51810012757778,
+      101.96138918399811,
+      102.18286328017712,
+      101.6810555011034,
+      101.2972965836525,
+      102.07782126963139
+    ],
+    "warmup_ms": [
+      329508.6982920766,
+      16990.438731387258,
+      114.75202813744545,
+      113.00426349043846,
+      102.46962122619152,
+      102.08282992243767
+    ]
+  },
+  "compile_mode": "max-autotune",
+  "config": {
+    "batch": 2,
+    "iterations": 10,
+    "note": "fixed order (16bit then w4a4), same process; custom-op integration",
+    "ours": "Pali 18x fused gate+up W4A4 behind omega::w4a4_linear custom op",
+    "timing_scope": "model.sample_actions (input transforms excluded)",
+    "warmup": 6
+  },
+  "experiment": "pi05_libero_w4a4_custom_op_under_torch_compile",
+  "replacement": {
+    "custom_op": "omega::w4a4_linear",
+    "fused_layers": 18,
+    "fused_shape": "2048x32768",
+    "pack_seconds": 0.23651116155087948,
+    "rank": 0,
+    "weight_quantization": "symmetric signed INT4 RTN, group_size=64"
+  },
+  "speedup_vs_compiled_16bit": 1.1321636858983202,
+  "w4a4_compiled_custom_op": {
+    "finite": true,
+    "max_ms": 90.53700976073742,
+    "mean_ms": 89.78813253343105,
+    "median_ms": 89.9350717663765,
+    "min_ms": 88.38431909680367,
+    "p95_ms": 90.53700976073742,
+    "samples_ms": [
+      90.53700976073742,
+      90.22071398794651,
+      90.328648686409,
+      90.1102852076292,
+      88.38431909680367,
+      89.84638750553131,
+      90.02375602722168,
+      89.40166793763638,
+      89.2343558371067,
+      89.79418128728867
+    ],
+    "warmup_ms": [
+      206740.51515571773,
+      26674.384547397494,
+      104.04097102582455,
+      103.89756038784981,
+      91.70408360660076,
+      90.10835364460945
+    ]
+  }
+}

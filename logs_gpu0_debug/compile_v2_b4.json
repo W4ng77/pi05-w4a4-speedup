@@ -1,0 +1,77 @@
+{
+  "baseline_compiled_16bit": {
+    "finite": true,
+    "max_ms": 156.72131069004536,
+    "mean_ms": 155.25607708841562,
+    "median_ms": 155.18038161098957,
+    "min_ms": 153.8453157991171,
+    "p95_ms": 156.72131069004536,
+    "samples_ms": [
+      153.8453157991171,
+      155.9099555015564,
+      155.35570308566093,
+      156.72131069004536,
+      154.91269528865814,
+      156.08477964997292,
+      155.0050601363182,
+      155.76208755373955,
+      154.4938776642084,
+      154.46998551487923
+    ],
+    "warmup_ms": [
+      327396.275408566,
+      17189.73625265062,
+      167.38922894001007,
+      164.5525638014078,
+      157.77652710676193,
+      158.75581465661526
+    ]
+  },
+  "compile_mode": "max-autotune",
+  "config": {
+    "batch": 4,
+    "iterations": 10,
+    "note": "fixed order (16bit then w4a4), same process; custom-op integration",
+    "ours": "Pali 18x fused gate+up W4A4 behind omega::w4a4_linear custom op",
+    "timing_scope": "model.sample_actions (input transforms excluded)",
+    "warmup": 6
+  },
+  "experiment": "pi05_libero_w4a4_custom_op_under_torch_compile",
+  "replacement": {
+    "custom_op": "omega::w4a4_linear",
+    "fused_layers": 18,
+    "fused_shape": "2048x32768",
+    "pack_seconds": 0.272875702008605,
+    "rank": 0,
+    "weight_quantization": "symmetric signed INT4 RTN, group_size=64"
+  },
+  "speedup_vs_compiled_16bit": 1.1607075493023404,
+  "w4a4_compiled_custom_op": {
+    "finite": true,
+    "max_ms": 134.55949537456036,
+    "mean_ms": 133.6993856355548,
+    "median_ms": 133.69464315474033,
+    "min_ms": 132.58332572877407,
+    "p95_ms": 134.55949537456036,
+    "samples_ms": [
+      133.6133200675249,
+      133.7281372398138,
+      134.0272556990385,
+      132.62235559523106,
+      132.58332572877407,
+      133.66114906966686,
+      133.4767621010542,
+      134.4411037862301,
+      134.28095169365406,
+      134.55949537456036
+    ],
+    "warmup_ms": [
+      211015.31069725752,
+      28091.18207730353,
+      149.57180805504322,
+      135.16848720610142,
+      134.76081006228924,
+      134.14969108998775
+    ]
+  }
+}

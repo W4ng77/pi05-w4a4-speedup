@@ -1,0 +1,77 @@
+{
+  "baseline_compiled_16bit": {
+    "finite": true,
+    "max_ms": 813.1601344794035,
+    "mean_ms": 811.7360308766365,
+    "median_ms": 811.728878878057,
+    "min_ms": 810.4157596826553,
+    "p95_ms": 813.1601344794035,
+    "samples_ms": [
+      811.7429967969656,
+      810.5746060609818,
+      810.4157596826553,
+      811.4778716117144,
+      811.7147609591484,
+      812.8170855343342,
+      813.1601344794035,
+      811.2528771162033,
+      812.0915349572897,
+      812.1126815676689
+    ],
+    "warmup_ms": [
+      352201.3266980648,
+      18776.579063385725,
+      824.5697040110826,
+      808.0518059432507,
+      809.8179809749126,
+      809.9851850420237
+    ]
+  },
+  "compile_mode": "max-autotune",
+  "config": {
+    "batch": 24,
+    "iterations": 10,
+    "note": "fixed order (16bit then w4a4), same process; custom-op integration",
+    "ours": "Pali 18x fused gate+up W4A4 behind omega::w4a4_linear custom op",
+    "timing_scope": "model.sample_actions (input transforms excluded)",
+    "warmup": 6
+  },
+  "experiment": "pi05_libero_w4a4_custom_op_under_torch_compile",
+  "replacement": {
+    "custom_op": "omega::w4a4_linear",
+    "fused_layers": 18,
+    "fused_shape": "2048x32768",
+    "pack_seconds": 0.21571379341185093,
+    "rank": 0,
+    "weight_quantization": "symmetric signed INT4 RTN, group_size=64"
+  },
+  "speedup_vs_compiled_16bit": 1.182262288381873,
+  "w4a4_compiled_custom_op": {
+    "finite": true,
+    "max_ms": 687.8808662295341,
+    "mean_ms": 686.715204641223,
+    "median_ms": 686.5895045921206,
+    "min_ms": 685.6366898864508,
+    "p95_ms": 687.8808662295341,
+    "samples_ms": [
+      685.6366898864508,
+      686.7411807179451,
+      686.3043401390314,
+      687.2305404394865,
+      686.6892818361521,
+      686.4897273480892,
+      686.4817589521408,
+      686.2107925117016,
+      687.8808662295341,
+      687.4868683516979
+    ],
+    "warmup_ms": [
+      214468.75611878932,
+      28749.739503487945,
+      700.9410187602043,
+      682.4751198291779,
+      684.8619673401117,
+      684.367386624217
+    ]
+  }
+}
