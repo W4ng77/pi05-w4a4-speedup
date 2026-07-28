@@ -41,6 +41,9 @@ def main() -> None:
     parser.add_argument("--pack", type=Path, default=DEFAULT_PACK)
     parser.add_argument("--batch", type=int, default=8)
     parser.add_argument("--mode", type=int, default=0, choices=(0, 1, 2))
+    parser.add_argument("--rot-impl", choices=("graph", "triton", "rotglu", "op"), default="graph",
+                        help="graph: rotations traced into the compiled graph (Inductor-fused); "
+                             "op: rotations eager inside the opaque custom op")
     parser.add_argument("--warmup", type=int, default=6)
     parser.add_argument("--iterations", type=int, default=10)
     parser.add_argument("--device", default="cuda:0")
@@ -121,7 +124,7 @@ def main() -> None:
         ops_spec.loader.exec_module(ops_module)
     replacement = ops_module.install_method_layers(
         model, pack, _runner, linear_cls, packer_cls,
-        projections=("gate_proj", "up_proj"), mode=args.mode,
+        projections=("gate_proj", "up_proj"), mode=args.mode, rot_impl=args.rot_impl,
     )
     print(f"[replace] {replacement}", file=sys.stderr, flush=True)
 
@@ -132,6 +135,7 @@ def main() -> None:
         "config": {
             "pack": str(args.pack),
             "mode": args.mode,
+            "rot_impl": args.rot_impl,
             "batch": args.batch,
             "warmup": args.warmup,
             "iterations": args.iterations,

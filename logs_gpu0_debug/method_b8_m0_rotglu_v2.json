@@ -1,0 +1,84 @@
+{
+  "baseline_compiled_16bit": {
+    "finite": true,
+    "max_ms": 277.42690593004227,
+    "mean_ms": 276.748126745224,
+    "median_ms": 276.8384516239166,
+    "min_ms": 275.74253268539906,
+    "p95_ms": 277.42690593004227,
+    "samples_ms": [
+      277.42690593004227,
+      277.0863492041826,
+      276.4263041317463,
+      276.3634826987982,
+      276.8097035586834,
+      276.264326646924,
+      277.3011829704046,
+      276.86719968914986,
+      275.74253268539906,
+      277.1932799369097
+    ],
+    "warmup_ms": [
+      21713.779585435987,
+      4453.752640634775,
+      290.6267661601305,
+      278.72793190181255,
+      274.9665305018425,
+      276.87464095652103
+    ]
+  },
+  "config": {
+    "batch": 8,
+    "compile_mode": "max-autotune",
+    "iterations": 10,
+    "mode": 0,
+    "note": "fixed order (16bit then method), same process",
+    "pack": "/ceph/workspace/xinyu/omega_packs/pi05_object/quantized.pt",
+    "rot_impl": "rotglu",
+    "timing_scope": "model.sample_actions",
+    "warmup": 6
+  },
+  "experiment": "pi05_libero_omega_method_real_params_speed",
+  "omega_method_compiled": {
+    "finite": true,
+    "max_ms": 240.69145135581493,
+    "mean_ms": 239.7454798221588,
+    "median_ms": 240.0153074413538,
+    "min_ms": 238.57576586306095,
+    "p95_ms": 240.69145135581493,
+    "samples_ms": [
+      238.57576586306095,
+      239.88889902830124,
+      239.38196524977684,
+      240.40952138602734,
+      240.2780782431364,
+      238.70176635682583,
+      239.19528350234032,
+      240.14171585440636,
+      240.69145135581493,
+      240.19035138189793
+    ],
+    "warmup_ms": [
+      11427.960662171245,
+      6442.509766668081,
+      259.02256183326244,
+      239.87662605941296,
+      236.5873698145151,
+      238.96611481904984
+    ]
+  },
+  "replacement": {
+    "act_scale": "pack act_scale_table -> kernel smooth slot",
+    "custom_op": "omega::method_linear",
+    "installed_layers": 36,
+    "mode": "full method (in-rot + smooth + W4A4 + out-rot)",
+    "pack_seconds": 0.9148830436170101,
+    "projections": [
+      "gate_proj",
+      "up_proj"
+    ],
+    "rot_impl": "rotglu",
+    "weights": "pack weight_res_q (rotated GPTQ), repacked RTN group-64"
+  },
+  "speedup_vs_compiled_16bit": 1.1534199821465985
+}
