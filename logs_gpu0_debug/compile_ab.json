@@ -1,0 +1,91 @@
+{
+  "baseline_compiled_16bit": {
+    "finite": true,
+    "max_ms": 65.75538218021393,
+    "mean_ms": 63.93396221101284,
+    "median_ms": 63.59495967626572,
+    "min_ms": 62.74989992380142,
+    "p95_ms": 65.75538218021393,
+    "samples_ms": [
+      64.26413729786873,
+      63.628386706113815,
+      63.39008919894695,
+      65.75538218021393,
+      65.03041461110115,
+      63.27298283576965,
+      64.3610805273056,
+      63.32571618258953,
+      63.56153264641762,
+      62.74989992380142
+    ],
+    "warmup_ms": [
+      257139.3599882722,
+      15474.94688257575,
+      74.32395219802856,
+      72.87167012691498,
+      73.25971312820911,
+      71.49619422852993
+    ]
+  },
+  "compile_mode": "max-autotune",
+  "config": {
+    "iterations": 10,
+    "note": "fixed order (16bit then w4a4), same process; coarse viability test",
+    "ours": "Pali 18x gate + 18x up unfused W4A4",
+    "warmup": 6
+  },
+  "experiment": "pi05_libero_w4a4_under_torch_compile",
+  "replacement": {
+    "count": 36,
+    "dense_parameter_bytes_replaced": 2415919104,
+    "expected_count": 36,
+    "nunchaku_parameter_bytes": 642023424,
+    "pack_seconds": 7.230802468955517,
+    "parameter_compression_ratio": 3.7629765732659624,
+    "per_step_scale_table": false,
+    "projection_counts": {
+      "gate_proj": 18,
+      "up_proj": 18
+    },
+    "projections": [
+      "gate_proj",
+      "up_proj"
+    ],
+    "rank": 0,
+    "scope": "pali",
+    "shape_counts": {
+      "2048x16384": 36
+    },
+    "smooth_factor": 1.0,
+    "weight_quantization": "symmetric signed INT4 RTN, group_size=64"
+  },
+  "speedup_vs_compiled_16bit": 0.9678814547566454,
+  "w4a4_compiled": {
+    "finite": true,
+    "max_ms": 66.35100767016411,
+    "mean_ms": 65.581258200109,
+    "median_ms": 65.70531893521547,
+    "min_ms": 64.93920832872391,
+    "p95_ms": 66.35100767016411,
+    "samples_ms": [
+      65.67562744021416,
+      65.82400389015675,
+      65.89433923363686,
+      65.73501043021679,
+      65.34472852945328,
+      66.35100767016411,
+      65.89093618094921,
+      64.93920832872391,
+      65.00129960477352,
+      65.15642069280148
+    ],
+    "warmup_ms": [
+      209004.88014146686,
+      576129.0663573891,
+      78.93279194831848,
+      76.67544856667519,
+      76.24180614948273,
+      65.76330028474331
+    ]
+  }
+}
