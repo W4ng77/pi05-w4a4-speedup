@@ -3,7 +3,8 @@
 
 Loads a released ``quantized.pt`` pack and measures, under torch.compile
 (max-autotune, deployment config), the compiled 16-bit baseline vs the
-faithful method pipeline on the Pali gate/up projections:
+real-pack method pipeline on a selectable set of Pali and action-expert
+projections:
 
     input rotation (perm + block bmm) -> smooth + INT4 quantize -> INT4x4
     GEMM (pack's rotated GPTQ weights) -> output rotation restore
@@ -34,16 +35,36 @@ _spec.loader.exec_module(_runner)
 
 DEFAULT_PACK = Path("/ceph/workspace/xinyu/omega_packs/pi05_object/quantized.pt")
 
+_SCOPE_CONFIGS = {
+    "pali_gateup": (("pali",), ("gate_proj", "up_proj")),
+    "pali_all": (
+        ("pali",),
+        ("q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"),
+    ),
+    "all": (
+        ("pali", "expert"),
+        ("q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"),
+    ),
+}
+
 
 @torch.inference_mode()
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--pack", type=Path, default=DEFAULT_PACK)
     parser.add_argument("--batch", type=int, default=8)
+    parser.add_argument(
+        "--scope", choices=tuple(_SCOPE_CONFIGS), default="pali_gateup",
+        help="pali_gateup: historical 36-layer path; pali_all: 126 Pali linears; "
+             "all: Pali + action expert, 252 linears",
+    )
     parser.add_argument("--mode", type=int, default=0, choices=(0, 1, 2))
-    parser.add_argument("--rot-impl", choices=("graph", "triton", "rotglu", "op"), default="graph",
-                        help="graph: rotations traced into the compiled graph (Inductor-fused); "
-                             "op: rotations eager inside the opaque custom op")
+    parser.add_argument(
+        "--rot-impl", choices=("graph", "triton", "rotglu", "op"), default="graph",
+        help="graph: trace both rotations; triton: custom Triton output rotation; "
+             "rotglu: Triton output rotations fused with MLP GLU; "
+             "op: rotations eager inside an opaque custom op",
+    )
     parser.add_argument("--warmup", type=int, default=6)
     parser.add_argument("--iterations", type=int, default=10)
     parser.add_argument("--device", default="cuda:0")
@@ -122,9 +143,10 @@ def main() -> None:
         ops_module = importlib.util.module_from_spec(ops_spec)
         sys.modules["omega_method_ops"] = ops_module
         ops_spec.loader.exec_module(ops_module)
+    scopes, projections = _SCOPE_CONFIGS[args.scope]
     replacement = ops_module.install_method_layers(
         model, pack, _runner, linear_cls, packer_cls,
-        projections=("gate_proj", "up_proj"), mode=args.mode, rot_impl=args.rot_impl,
+        scopes=scopes, projections=projections, mode=args.mode, rot_impl=args.rot_impl,
     )
     print(f"[replace] {replacement}", file=sys.stderr, flush=True)
 
@@ -136,6 +158,7 @@ def main() -> None:
             "pack": str(args.pack),
             "mode": args.mode,
             "rot_impl": args.rot_impl,
+            "scope": args.scope,
             "batch": args.batch,
             "warmup": args.warmup,
             "iterations": args.iterations,

@@ -1,8 +1,8 @@
 """Real Omega-QVLA method execution behind a torch.library custom op.
 
 Loads per-layer records from an Omega-QVLA ``quantized.pt`` pack
-(``dit_svdquant_v1``) and installs, for each selected Pali projection, the
-FAITHFUL deployment pipeline of the method:
+(``dit_svdquant_v1``) and installs, for each selected Pali and/or action
+expert projection, the real-pack deployment-compatible W4A4 pipeline:
 
     x -> input rotation (zigzag perm + block-diag(64) bmm)
       -> Nunchaku fused quantize (per-channel act-scale in the smooth slot,
@@ -32,6 +32,20 @@ if not hasattr(torch, "_omega_method_entries"):
 _ENTRIES: list = torch._omega_method_entries
 
 _PALI_PREFIX = "paligemma_with_expert.paligemma.model.language_model.layers"
+_EXPERT_PREFIX = "paligemma_with_expert.gemma_expert.model.layers"
+_SCOPE_PREFIXES = {
+    "pali": _PALI_PREFIX,
+    "expert": _EXPERT_PREFIX,
+}
+_ALL_PROJECTIONS = (
+    "q_proj",
+    "k_proj",
+    "v_proj",
+    "o_proj",
+    "gate_proj",
+    "up_proj",
+    "down_proj",
+)
 
 
 def _block_rotate(x2d: torch.Tensor, blocks: torch.Tensor) -> torch.Tensor:
@@ -188,14 +202,58 @@ def install_method_layers(
     runner_module,
     linear_cls: type[nn.Module],
     packer_cls: type,
+    scopes: tuple[str, ...] = ("pali",),
     projections: tuple[str, ...] = ("gate_proj", "up_proj"),
     mode: int = 0,
     rot_impl: str = "graph",  # graph | triton | op
     device: torch.device | None = None,
 ) -> dict:
+    """Install real-pack W4A4 modules for the requested policy scopes.
+
+    ``pali`` is the 18-layer PaliGemma language stack and ``expert`` is the
+    18-layer action-denoising Gemma expert.  ``projections`` can be the
+    two MLP input projections (the historical fast path) or all seven
+    attention/MLP projections.  The all-scope/all-projection configuration
+    installs 18 * 7 * 2 = 252 W4A4 modules.
+
+    A ``rotglu`` request remains exact for any selected gate/up pair: those
+    two modules keep their independent input rotations and quantizations,
+    skip their individual output restores, and the parent MLP restores both
+    outputs and applies GLU through the fused Triton op.  Other projections
+    use the regular graph input rotation plus a single-pass Triton output
+    restore under ``rotglu``.
+    """
+    scopes = tuple(dict.fromkeys(scopes))
+    projections = tuple(dict.fromkeys(projections))
+    unknown_scopes = set(scopes).difference(_SCOPE_PREFIXES)
+    unknown_projections = set(projections).difference(_ALL_PROJECTIONS)
+    if unknown_scopes:
+        raise ValueError(f"unknown method scope(s): {sorted(unknown_scopes)}")
+    if unknown_projections:
+        raise ValueError(f"unknown projection(s): {sorted(unknown_projections)}")
+    if not scopes or not projections:
+        raise ValueError("scopes and projections must both be non-empty")
+
+    # Validate everything before replacing the first module.  In particular,
+    # a partial pack must not leave the policy half-mutated on a failed --scope
+    # all request.
+    targets: list[tuple[str, int, str, str, str]] = []
+    for scope in scopes:
+        prefix = _SCOPE_PREFIXES[scope]
+        for layer_index in range(18):
+            for projection in projections:
+                parent_name = "mlp" if projection in ("gate_proj", "up_proj", "down_proj") else "self_attn"
+                parent_path = f"{prefix}.{layer_index}.{parent_name}"
+                name = f"{parent_path}.{projection}"
+                if name not in pack:
+                    raise KeyError(f"pack has no record for selected layer: {name}")
+                parent = model.get_submodule(parent_path)
+                dense = getattr(parent, projection)
+                if not isinstance(dense, nn.Linear):
+                    raise RuntimeError(f"{name} is not an unreplaced nn.Linear")
+                targets.append((scope, layer_index, projection, parent_path, name))
+
     if rot_impl in ("graph", "triton", "rotglu"):
-        if rot_impl == "rotglu" and tuple(projections) != ("gate_proj", "up_proj"):
-            raise ValueError("rotglu fusion requires projections=(gate_proj, up_proj)")
         if str(Path(__file__).parent) not in sys.path:
             sys.path.insert(0, str(Path(__file__).parent))
         # Ensure omega::w4a4_linear + its kernel registry exist.
@@ -210,88 +268,117 @@ def install_method_layers(
     packer = packer_cls(bits=4)
     started = time.perf_counter()
     count = 0
-    for layer_index in range(18):
-        for projection in projections:
-            parent_name = "mlp" if projection in ("gate_proj", "up_proj", "down_proj") else "self_attn"
-            name = f"{_PALI_PREFIX}.{layer_index}.{parent_name}.{projection}"
-            record = pack[name]
-            parent = model.get_submodule(f"{_PALI_PREFIX}.{layer_index}.{parent_name}")
-            dense = getattr(parent, projection)
-            if not isinstance(dense, nn.Linear):
-                raise RuntimeError(f"{name} already replaced")
-            dev = device or dense.weight.device
-            dtype = dense.weight.dtype
+    installed_by_scope = {scope: 0 for scope in scopes}
+    pair_rotglu = (
+        rot_impl == "rotglu"
+        and mode == 0
+        and {"gate_proj", "up_proj"}.issubset(projections)
+    )
+    pair_rotglu_layers = 0
+    for scope, layer_index, projection, parent_path, name in targets:
+        record = pack[name]
+        parent = model.get_submodule(parent_path)
+        dense = getattr(parent, projection)
+        dev = device or dense.weight.device
+        dtype = dense.weight.dtype
 
-            carrier = nn.Linear(
-                record["in_features"], record["out_features"], bias=False, dtype=dtype, device=dev
-            )
-            carrier.weight.copy_(record["weight_res_q"].to(dtype))
-            wrapper = runner_module.make_nunchaku_linear(carrier, linear_cls=linear_cls, packer=packer)
-            del carrier
-            kernel = wrapper.kernel
-            act_scale = record["act_scale_table"].mean(dim=0).to(dtype=dtype, device=dev)
-            act_scale = torch.where(act_scale > 0, act_scale, torch.ones_like(act_scale))
-            kernel.smooth_factor.copy_(act_scale)
-            kernel.smooth_factor_orig.copy_(act_scale)
+        carrier = nn.Linear(
+            record["in_features"], record["out_features"], bias=False, dtype=dtype, device=dev
+        )
+        carrier.weight.copy_(record["weight_res_q"].to(dtype))
+        wrapper = runner_module.make_nunchaku_linear(carrier, linear_cls=linear_cls, packer=packer)
+        del carrier
+        kernel = wrapper.kernel
+        # Pali records have a single table row.  Expert records have one row
+        # per denoise step, but OpenPI's compiled Pi-0.5 loop has no step
+        # context; use its established compiled fallback (the table mean)
+        # rather than adding a graph-breaking ContextVar dispatch here.
+        act_scale = record["act_scale_table"].mean(dim=0).to(dtype=dtype, device=dev)
+        act_scale = torch.where(act_scale > 0, act_scale, torch.ones_like(act_scale))
+        kernel.smooth_factor.copy_(act_scale)
+        kernel.smooth_factor_orig.copy_(act_scale)
 
-            entry = {
-                "kernel": kernel,
-                "perm": record["duquant_rotation_perm"].to(device=dev),
-                "in_blocks": record["duquant_rotation_blocks"].to(dtype=dtype, device=dev),
-                "out_blocks": (
-                    record["duquant_rotation_out_blocks"].to(dtype=dtype, device=dev)
-                    if "duquant_rotation_out_blocks" in record
-                    else None
-                ),
-            }
-            if rot_impl in ("graph", "triton", "rotglu"):
-                w4a4_handle = len(w4a4_kernels)
-                w4a4_kernels.append(kernel)
-                # rotglu: the out-rot moves into the fused rotglu kernel, so
-                # the per-projection module runs mode>=1 internally.
-                eff_mode = max(mode, 1) if rot_impl == "rotglu" else mode
-                new_module = OmegaMethodLinearGraphRot(
-                    w4a4_handle, record["in_features"], record["out_features"], eff_mode,
-                    entry["perm"], entry["in_blocks"], entry["out_blocks"], dtype, dev,
-                    triton_outrot=rot_impl == "triton",
-                ).eval()
-            else:
-                handle = len(_ENTRIES)
-                _ENTRIES.append(entry)
-                new_module = OmegaMethodLinear(
-                    handle, record["in_features"], record["out_features"], mode, dtype, dev
-                ).eval()
-            setattr(parent, projection, new_module)
-            count += 1
-        if rot_impl == "rotglu" and mode == 0:
-            mlp = model.get_submodule(f"{_PALI_PREFIX}.{layer_index}.mlp")
-            rec_g = pack[f"{_PALI_PREFIX}.{layer_index}.mlp.gate_proj"]
-            rec_u = pack[f"{_PALI_PREFIX}.{layer_index}.mlp.up_proj"]
-            dev0 = device or mlp.down_proj.weight.device
-            dt0 = mlp.down_proj.weight.dtype
-            rotglu_handle = len(_ROTGLU)
-            _ROTGLU.append((
-                rec_g["duquant_rotation_out_blocks"].to(dtype=dt0, device=dev0).contiguous(),
-                rec_u["duquant_rotation_out_blocks"].to(dtype=dt0, device=dev0).contiguous(),
-            ))
+        entry = {
+            "kernel": kernel,
+            "perm": record["duquant_rotation_perm"].to(device=dev),
+            "in_blocks": record["duquant_rotation_blocks"].to(dtype=dtype, device=dev),
+            "out_blocks": (
+                record["duquant_rotation_out_blocks"].to(dtype=dtype, device=dev)
+                if "duquant_rotation_out_blocks" in record
+                else None
+            ),
+        }
+        if rot_impl in ("graph", "triton", "rotglu"):
+            w4a4_handle = len(w4a4_kernels)
+            w4a4_kernels.append(kernel)
+            # For a selected MLP gate/up pair, rotglu performs both output
+            # restores together with GLU. Every other projection must retain
+            # its own output rotation under the same run.
+            is_rotglu_pair_branch = pair_rotglu and projection in ("gate_proj", "up_proj")
+            eff_mode = 1 if is_rotglu_pair_branch else mode
+            new_module = OmegaMethodLinearGraphRot(
+                w4a4_handle, record["in_features"], record["out_features"], eff_mode,
+                entry["perm"], entry["in_blocks"], entry["out_blocks"], dtype, dev,
+                triton_outrot=(rot_impl in ("triton", "rotglu")) and not is_rotglu_pair_branch,
+            ).eval()
+        else:
+            handle = len(_ENTRIES)
+            _ENTRIES.append(entry)
+            new_module = OmegaMethodLinear(
+                handle, record["in_features"], record["out_features"], mode, dtype, dev
+            ).eval()
+        setattr(parent, projection, new_module)
+        count += 1
+        installed_by_scope[scope] += 1
 
-            def _mlp_forward(self, x: torch.Tensor, _h: int = rotglu_handle) -> torch.Tensor:
-                g = self.gate_proj(x)
-                u = self.up_proj(x)
-                return self.down_proj(torch.ops.omega.rotglu(g, u, _h))
+    # Patch each selected MLP only after every selected projection has been
+    # installed.  This works whether down_proj stays dense or is itself W4A4.
+    if pair_rotglu:
+        for scope in scopes:
+            prefix = _SCOPE_PREFIXES[scope]
+            for layer_index in range(18):
+                mlp = model.get_submodule(f"{prefix}.{layer_index}.mlp")
+                rec_g = pack[f"{prefix}.{layer_index}.mlp.gate_proj"]
+                rec_u = pack[f"{prefix}.{layer_index}.mlp.up_proj"]
+                dev0 = device or mlp.down_proj.weight.device
+                dt0 = mlp.down_proj.weight.dtype
+                rotglu_handle = len(_ROTGLU)
+                _ROTGLU.append((
+                    rec_g["duquant_rotation_out_blocks"].to(dtype=dt0, device=dev0).contiguous(),
+                    rec_u["duquant_rotation_out_blocks"].to(dtype=dt0, device=dev0).contiguous(),
+                ))
 
-            mlp.forward = types.MethodType(_mlp_forward, mlp)
-        if layer_index % 6 == 5:
-            torch.cuda.empty_cache()
+                def _mlp_forward(self, x: torch.Tensor, _h: int = rotglu_handle) -> torch.Tensor:
+                    g = self.gate_proj(x)
+                    u = self.up_proj(x)
+                    return self.down_proj(torch.ops.omega.rotglu(g, u, _h))
+
+                mlp.forward = types.MethodType(_mlp_forward, mlp)
+                pair_rotglu_layers += 1
+                if layer_index % 6 == 5:
+                    torch.cuda.empty_cache()
+    else:
+        # Retain the old cadence for non-rotglu installs without relying on
+        # target ordering.
+        torch.cuda.empty_cache()
+
+    if count:
+        torch.cuda.empty_cache()
     torch.cuda.synchronize()
     return {
         "installed_layers": count,
+        "installed_by_scope": installed_by_scope,
+        "scopes": list(scopes),
         "rot_impl": rot_impl,
         "projections": list(projections),
+        "rotglu_mlp_pairs": pair_rotglu_layers,
         "mode": {0: "full method (in-rot + smooth + W4A4 + out-rot)",
                  1: "no out-rot", 2: "no rotations (smooth + W4A4 only)"}[mode],
-        "custom_op": "omega::method_linear",
+        "custom_op": "omega::w4a4_linear (+ omega::rotglu for MLP pairs)",
         "pack_seconds": time.perf_counter() - started,
         "weights": "pack weight_res_q (rotated GPTQ), repacked RTN group-64",
-        "act_scale": "pack act_scale_table -> kernel smooth slot",
+        "act_scale": (
+            "per-layer table mean -> Nunchaku smooth slot "
+            "(Pali has one row; expert mean matches OpenPI compiled fallback)"
+        ),
     }

@@ -1,0 +1,99 @@
+{
+  "baseline_compiled_16bit": {
+    "finite": true,
+    "max_ms": 104.08900678157806,
+    "mean_ms": 100.5805728957057,
+    "median_ms": 100.32898932695389,
+    "min_ms": 98.42895530164242,
+    "p95_ms": 104.08900678157806,
+    "samples_ms": [
+      98.42895530164242,
+      100.5165297538042,
+      100.39068572223186,
+      100.26729293167591,
+      100.46309232711792,
+      99.68828037381172,
+      99.7184794396162,
+      99.43759441375732,
+      104.08900678157806,
+      102.80581191182137
+    ],
+    "warmup_ms": [
+      33627.1628793329,
+      4213.51451613009,
+      115.47709070146084,
+      113.64728398621082,
+      105.4940614849329,
+      101.41560435295105
+    ]
+  },
+  "config": {
+    "batch": 2,
+    "compile_mode": "max-autotune",
+    "iterations": 10,
+    "mode": 0,
+    "note": "fixed order (16bit then method), same process",
+    "pack": "/ceph/workspace/xinyu/omega_packs/pi05_object/quantized.pt",
+    "rot_impl": "rotglu",
+    "scope": "all",
+    "timing_scope": "model.sample_actions",
+    "warmup": 6
+  },
+  "experiment": "pi05_libero_omega_method_real_params_speed",
+  "omega_method_compiled": {
+    "finite": true,
+    "max_ms": 156.53275698423386,
+    "mean_ms": 155.831553414464,
+    "median_ms": 155.74300196021795,
+    "min_ms": 155.50323203206062,
+    "p95_ms": 156.53275698423386,
+    "samples_ms": [
+      155.52151761949062,
+      155.77956475317478,
+      155.54630011320114,
+      155.8880601078272,
+      156.14622086286545,
+      156.53275698423386,
+      156.12178295850754,
+      155.56965954601765,
+      155.70643916726112,
+      155.50323203206062
+    ],
+    "warmup_ms": [
+      303317.4184113741,
+      20264.708884060383,
+      185.819236561656,
+      156.91038221120834,
+      156.5181352198124,
+      155.97041882574558
+    ]
+  },
+  "replacement": {
+    "act_scale": "per-layer table mean -> Nunchaku smooth slot (Pali has one row; expert mean matches OpenPI compiled fallback)",
+    "custom_op": "omega::w4a4_linear (+ omega::rotglu for MLP pairs)",
+    "installed_by_scope": {
+      "expert": 126,
+      "pali": 126
+    },
+    "installed_layers": 252,
+    "mode": "full method (in-rot + smooth + W4A4 + out-rot)",
+    "pack_seconds": 3.3216585349291563,
+    "projections": [
+      "q_proj",
+      "k_proj",
+      "v_proj",
+      "o_proj",
+      "gate_proj",
+      "up_proj",
+      "down_proj"
+    ],
+    "rot_impl": "rotglu",
+    "rotglu_mlp_pairs": 36,
+    "scopes": [
+      "pali",
+      "expert"
+    ],
+    "weights": "pack weight_res_q (rotated GPTQ), repacked RTN group-64"
+  },
+  "speedup_vs_compiled_16bit": 0.6441958101756721
+}
