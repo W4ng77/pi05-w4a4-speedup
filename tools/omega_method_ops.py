@@ -94,6 +94,27 @@ def _triton_out_rotate_fake(y: torch.Tensor, handle: int) -> torch.Tensor:
     return torch.empty_like(y)
 
 
+if not hasattr(torch, "_omega_inrot_entries"):
+    torch._omega_inrot_entries = []
+_INROT: list = torch._omega_inrot_entries
+
+
+@torch.library.custom_op("omega::triton_in_rotate", mutates_args=())
+def triton_in_rotate(x: torch.Tensor, handle: int) -> torch.Tensor:
+    from triton_block_rotate import block_rotate_triton
+
+    perm, blocks = _INROT[handle]
+    leading = x.shape[:-1]
+    x2 = x.reshape(-1, x.shape[-1])
+    out = block_rotate_triton(x2.contiguous(), blocks, perm)
+    return out.reshape(*leading, x.shape[-1])
+
+
+@triton_in_rotate.register_fake
+def _triton_in_rotate_fake(x: torch.Tensor, handle: int) -> torch.Tensor:
+    return torch.empty_like(x)
+
+
 if not hasattr(torch, "_omega_rotglu_entries"):
     torch._omega_rotglu_entries = []
 _ROTGLU: list = torch._omega_rotglu_entries
@@ -103,11 +124,13 @@ _ROTGLU: list = torch._omega_rotglu_entries
 def rotglu(g: torch.Tensor, u: torch.Tensor, handle: int) -> torch.Tensor:
     from triton_block_rotate import rotglu_triton
 
-    rg, ru = _ROTGLU[handle]
+    entry = _ROTGLU[handle]
+    rg, ru = entry[0], entry[1]
+    dst = entry[2] if len(entry) > 2 else None
     leading = g.shape[:-1]
     g2 = g.reshape(-1, g.shape[-1]).contiguous()
     u2 = u.reshape(-1, u.shape[-1]).contiguous()
-    return rotglu_triton(g2, u2, rg, ru).reshape(*leading, g.shape[-1])
+    return rotglu_triton(g2, u2, rg, ru, dst_index=dst).reshape(*leading, g.shape[-1])
 
 
 @rotglu.register_fake
@@ -124,7 +147,7 @@ class OmegaMethodLinearGraphRot(nn.Module):
     def __init__(self, w4a4_handle: int, in_features: int, out_features: int, mode: int,
                  perm: torch.Tensor, in_blocks: torch.Tensor, out_blocks: torch.Tensor | None,
                  weight_dtype: torch.dtype, device: torch.device,
-                 triton_outrot: bool = False):
+                 triton_outrot: bool = False, triton_inrot: bool = False):
         super().__init__()
         self.w4a4_handle = w4a4_handle
         self.in_features = in_features
@@ -136,6 +159,10 @@ class OmegaMethodLinearGraphRot(nn.Module):
         self.register_buffer("in_blocks", in_blocks, persistent=False)
         self.has_out = out_blocks is not None
         self.triton_outrot = triton_outrot
+        self.triton_inrot = triton_inrot
+        if triton_inrot:
+            self.inrot_handle = len(_INROT)
+            _INROT.append((perm.contiguous(), in_blocks.contiguous()))
         if self.has_out:
             self.register_buffer("out_blocks", out_blocks, persistent=False)
             if triton_outrot:
@@ -156,10 +183,13 @@ class OmegaMethodLinearGraphRot(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         leading = x.shape[:-1]
         if self.mode < 2:
-            xp = x.index_select(-1, self.perm)
-            x2 = xp.reshape(-1, self.n_in, 64)
-            x2 = torch.einsum("mnk,nkh->mnh", x2, self.in_blocks.to(x.dtype))
-            x = x2.reshape(*leading, self.in_features)
+            if self.triton_inrot:
+                x = torch.ops.omega.triton_in_rotate(x, self.inrot_handle)
+            else:
+                xp = x.index_select(-1, self.perm)
+                x2 = xp.reshape(-1, self.n_in, 64)
+                x2 = torch.einsum("mnk,nkh->mnh", x2, self.in_blocks.to(x.dtype))
+                x = x2.reshape(*leading, self.in_features)
         y = torch.ops.omega.w4a4_linear(x, self.w4a4_handle, self.out_features)
         if self.mode == 0 and self.has_out:
             if self.triton_outrot:
@@ -253,7 +283,7 @@ def install_method_layers(
                     raise RuntimeError(f"{name} is not an unreplaced nn.Linear")
                 targets.append((scope, layer_index, projection, parent_path, name))
 
-    if rot_impl in ("graph", "triton", "rotglu"):
+    if rot_impl in ("graph", "triton", "rotglu", "rotglu2", "rotglu3", "rotglu4"):
         if str(Path(__file__).parent) not in sys.path:
             sys.path.insert(0, str(Path(__file__).parent))
         # Ensure omega::w4a4_linear + its kernel registry exist.
@@ -270,7 +300,7 @@ def install_method_layers(
     count = 0
     installed_by_scope = {scope: 0 for scope in scopes}
     pair_rotglu = (
-        rot_impl == "rotglu"
+        rot_impl in ("rotglu", "rotglu2", "rotglu3", "rotglu4")
         and mode == 0
         and {"gate_proj", "up_proj"}.issubset(projections)
     )
@@ -308,7 +338,7 @@ def install_method_layers(
                 else None
             ),
         }
-        if rot_impl in ("graph", "triton", "rotglu"):
+        if rot_impl in ("graph", "triton", "rotglu", "rotglu2", "rotglu3", "rotglu4"):
             w4a4_handle = len(w4a4_kernels)
             w4a4_kernels.append(kernel)
             # For a selected MLP gate/up pair, rotglu performs both output
@@ -319,7 +349,8 @@ def install_method_layers(
             new_module = OmegaMethodLinearGraphRot(
                 w4a4_handle, record["in_features"], record["out_features"], eff_mode,
                 entry["perm"], entry["in_blocks"], entry["out_blocks"], dtype, dev,
-                triton_outrot=(rot_impl in ("triton", "rotglu")) and not is_rotglu_pair_branch,
+                triton_outrot=(rot_impl in ("triton", "rotglu", "rotglu2", "rotglu3", "rotglu4")) and not is_rotglu_pair_branch,
+                triton_inrot=(rot_impl == "rotglu2") or (rot_impl == "rotglu3" and scope == "expert"),
             ).eval()
         else:
             handle = len(_ENTRIES)
@@ -343,9 +374,29 @@ def install_method_layers(
                 dev0 = device or mlp.down_proj.weight.device
                 dt0 = mlp.down_proj.weight.dtype
                 rotglu_handle = len(_ROTGLU)
+                dst_index = None
+                down_module = mlp.down_proj
+                if (
+                    rot_impl == "rotglu4"
+                    and isinstance(down_module, OmegaMethodLinearGraphRot)
+                    and down_module.mode < 2
+                    and not down_module.triton_inrot
+                ):
+                    # Store the rotglu result already permuted for down_proj's
+                    # input rotation; down then skips its gather pass and runs
+                    # the fast contiguous block-rotate.
+                    inv_perm = torch.empty_like(down_module.perm)
+                    inv_perm[down_module.perm] = torch.arange(
+                        down_module.perm.numel(), device=down_module.perm.device
+                    )
+                    dst_index = inv_perm.contiguous()
+                    down_module.triton_inrot = True
+                    down_module.inrot_handle = len(_INROT)
+                    _INROT.append((None, down_module.in_blocks.contiguous()))
                 _ROTGLU.append((
                     rec_g["duquant_rotation_out_blocks"].to(dtype=dt0, device=dev0).contiguous(),
                     rec_u["duquant_rotation_out_blocks"].to(dtype=dt0, device=dev0).contiguous(),
+                    dst_index,
                 ))
 
                 def _mlp_forward(self, x: torch.Tensor, _h: int = rotglu_handle) -> torch.Tensor:

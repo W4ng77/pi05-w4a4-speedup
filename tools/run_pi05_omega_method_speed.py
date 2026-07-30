@@ -60,9 +60,10 @@ def main() -> None:
     )
     parser.add_argument("--mode", type=int, default=0, choices=(0, 1, 2))
     parser.add_argument(
-        "--rot-impl", choices=("graph", "triton", "rotglu", "op"), default="graph",
+        "--rot-impl", choices=("graph", "triton", "rotglu", "rotglu2", "rotglu3", "rotglu4", "op"), default="graph",
         help="graph: trace both rotations; triton: custom Triton output rotation; "
              "rotglu: Triton output rotations fused with MLP GLU; "
+             "rotglu2: rotglu + single-pass Triton input rotations everywhere; "
              "op: rotations eager inside an opaque custom op",
     )
     parser.add_argument("--warmup", type=int, default=6)

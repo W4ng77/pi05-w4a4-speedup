@@ -50,9 +50,9 @@ def _block_rotate_kernel(
 
 @triton.jit
 def _rotglu_kernel(
-    g_ptr, u_ptr, rg_ptr, ru_ptr, out_ptr,
+    g_ptr, u_ptr, rg_ptr, ru_ptr, out_ptr, dst_idx_ptr,
     M, stride_m,
-    BM: tl.constexpr,
+    HAS_DST: tl.constexpr, BM: tl.constexpr,
 ):
     """out[:, b*64:(b+1)*64] = silu(g @ Rg_b) * (u @ Ru_b), single pass."""
     pid_m = tl.program_id(0)
@@ -76,16 +76,30 @@ def _rotglu_kernel(
     # tanh(z) = 2*sigmoid(2z) - 1: overflow-safe for large |z|
     act = 0.5 * gr * (2.0 * tl.sigmoid(2.0 * inner))
     y = act * ur
-    tl.store(out_ptr + offs, y.to(out_ptr.dtype.element_ty), mask=row_mask[:, None])
+    if HAS_DST:
+        dst = tl.load(dst_idx_ptr + pid_b * 64 + cols)
+        out_offs = rows[:, None] * stride_m + dst[None, :]
+    else:
+        out_offs = offs
+    tl.store(out_ptr + out_offs, y.to(out_ptr.dtype.element_ty), mask=row_mask[:, None])
 
 
 def rotglu_triton(g: torch.Tensor, u: torch.Tensor, rg: torch.Tensor, ru: torch.Tensor,
-                  BM: int = 64) -> torch.Tensor:
-    """g, u: (M, F) un-restored GEMM outputs; rg, ru: (F//64, 64, 64)."""
+                  dst_index: torch.Tensor | None = None, BM: int = 64) -> torch.Tensor:
+    """g, u: (M, F) un-restored GEMM outputs; rg, ru: (F//64, 64, 64).
+
+    ``dst_index`` (len F) scatters the store so the result comes out already
+    permuted for the NEXT layer's input rotation (down_proj), letting that
+    rotation skip its gather pass."""
     M, F = g.shape
     out = torch.empty_like(g)
     grid = (triton.cdiv(M, BM), F // 64)
-    _rotglu_kernel[grid](g, u, rg, ru, out, M, g.stride(0), BM=BM, num_warps=4)
+    _rotglu_kernel[grid](
+        g, u, rg, ru, out,
+        dst_index if dst_index is not None else g,
+        M, g.stride(0),
+        HAS_DST=dst_index is not None, BM=BM, num_warps=4,
+    )
     return out
 
 
